@@ -175,6 +175,21 @@ class BatchStructureSetConversionLogic(ScriptedLoadableModuleLogic):
             if not success:
                 logging.error('Failed to save labelmap: ' + filePath)
 
+    def SaveImages(self, outputDir, node_key = 'vtkMRMLScalarVolumeNode*'):
+        for imageNode in slicer.util.getNodes(node_key).values():
+            # Clean up file name and set path
+            fileName = imageNode.GetName() + '.nrrd'
+            charsRoRemove = ['!', '?', ':', ';']
+            fileName = fileName.translate(None, ''.join(charsRoRemove))
+            fileName = fileName.replace(' ', '_')
+            filePath = outputDir + '/' + fileName
+            logging.info('  Saving image ' + imageNode.GetName() + '\n    to file ' + fileName)
+
+            # Save to file
+            success = slicer.util.saveNode(imageNode, filePath)
+            if not success:
+                logging.error('Failed to save labelmap: ' + filePath)
+
 
 # ------------------------------------------------------------------------------
 # BatchStructureSetConversionTest
@@ -333,6 +348,9 @@ def main(argv):
         parser.add_argument("-x", "--exist-db", dest="exist_db",
                             default=False, required=False, action='store_true',
                             help="Process an existing database")
+        parser.add_argument("-m", "--export-images", dest="export_images",
+                            default=False, required=False, action='store_true',
+                            help="Export image data with labelmaps")
         parser.add_argument("-o", "--output-folder", dest="output_folder", metavar="PATH",
                             default=".", help="Folder for output labelmaps")
 
@@ -349,6 +367,7 @@ def main(argv):
         input_folder = args.input_folder.replace('\\', '/')
         output_folder = args.output_folder.replace('\\', '/')
         exist_db = args.exist_db
+        export_images = args.export_images
 
         # Perform batch conversion
         logic = BatchStructureSetConversionLogic()
@@ -359,6 +378,9 @@ def main(argv):
 
             logging.info("Save labelmaps to directory " + output_dir)
             logic.SaveLabelmaps(labelmaps, output_dir)
+            if export_images:
+                logging.info("Save images to directory " + output_dir)
+                logic.SaveImages(output_dir)
             logging.info("DONE")
 
         if exist_db:
