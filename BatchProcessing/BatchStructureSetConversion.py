@@ -75,7 +75,7 @@ class BatchStructureSetConversionLogic(ScriptedLoadableModuleLogic):
         # Open an existing database
         try:
             if not os.access(path, os.F_OK):
-                raise RuntimeError("Database cannot be found!", path)
+                logging.error("Database cannot be found! %s" % path)
             self.originalDatabaseDirectory = os.path.split(path)[0]
             self.dicomWidget.onDatabaseDirectoryChanged(path)
         except Exception, e:
@@ -176,7 +176,10 @@ class BatchStructureSetConversionLogic(ScriptedLoadableModuleLogic):
                 logging.error('Failed to save labelmap: ' + filePath)
 
     def SaveImages(self, outputDir, node_key = 'vtkMRMLScalarVolumeNode*'):
-        for imageNode in slicer.util.getNodes(node_key).values():
+        # Save all of the ScalarVolumes (or whatever is in node_key) to NRRD files
+        sv_nodes = slicer.util.getNodes(node_key)
+        logging.info("Save image volumes nodes to directory %s: %s" % (outputDir, ','.join(sv_nodes.keys())))
+        for imageNode in sv_nodes.values():
             # Clean up file name and set path
             fileName = imageNode.GetName() + '.nrrd'
             charsRoRemove = ['!', '?', ':', ';']
@@ -188,7 +191,7 @@ class BatchStructureSetConversionLogic(ScriptedLoadableModuleLogic):
             # Save to file
             success = slicer.util.saveNode(imageNode, filePath)
             if not success:
-                logging.error('Failed to save labelmap: ' + filePath)
+                logging.error('Failed to save image-volume: ' + filePath)
 
 
 # ------------------------------------------------------------------------------
@@ -379,11 +382,11 @@ def main(argv):
             logging.info("Save labelmaps to directory " + output_dir)
             logic.SaveLabelmaps(labelmaps, output_dir)
             if export_images:
-                logging.info("Save images to directory " + output_dir)
                 logic.SaveImages(output_dir)
             logging.info("DONE")
 
         if exist_db:
+            logging.info('BatchStructureSet Running in Existing Database Mode')
             logic.LoadDatabase(input_folder)
             all_patients = slicer.dicomDatabase.patients()
             logging.info('Must Process Patients %s' % len(all_patients))
